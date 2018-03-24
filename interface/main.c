@@ -9,7 +9,7 @@
 
 // Defined Macros
 #define   MAX_COUNT  3
-#define TIMEOUT_TIME 20
+#define TIMEOUT_TIME 10
 #define GPS_TIMEOUT_TIME 6
 #define MAX_GPS_TIMEOUT 8
 #define	  TRUE	1
@@ -23,10 +23,16 @@ void timeout(void);
 void hackRF_start(void);
 void GPS_child_process(void);
 void get_coordinates(void);
-#define GPS_FILE_PATH "/var/www/html/interface/GPS_text_FIFO"
+void write_webpage(int);
+
+//FIFO declarations
+#define GPS_FILE_PATH "/var/www/html/interface/GPS_text_FIFO" //GPS_FILE_PATH FIFO is used to pipe the output of the GPS python script to the GPS_child_process function.
 #define REQUEST_GPS_FILE_PATH "/var/www/html/interface/request_GPS_data_FIFO"
-#define SEND_GPS_FILE_PATH "/var/www/html/interface/send_home_GPS_data_FIFO"
-#define MAIN_FIFO_PATH "/var/www/html/interface/main_FIFO"
+#define SEND_GPS_FILE_PATH "/var/www/html/interface/send_home_GPS_data_FIFO" //SEND_GPS_FILE_PATH FIFO is for sending the received GPS coordinates in the GPS_child_process function
+// to the get_coordinates function. Also, the gps_timeout function uses this FIFO for sending in the invalid coordinates to increment the coord_timeout counter.
+#define MAIN_FIFO_PATH "/var/www/html/interface/main_FIFO" //Main_FIFO_PATH is the pipe for the webpage to talk to the pi. The commands ID's, frequency parameters, bin width, 
+//and location description all come through this FIFO. Also, this FIFO is used for the hackRF timeout to send a command saying it is stuck. Also, the hackRF child process
+// uses MAIN_FIFO_PATH to write that the hackRF is done sweeping.
 
 //Global Variables
 char web_string[60] ={0};
@@ -67,10 +73,10 @@ int main(int argc, char **argv)
 		}
      else {
 		 printf("right before parent main\n");
-         while(1){
-		 check_input();
-		 check_task();
-		 process_task();
+         while(1){	//Main while loop. 
+		 check_input(); //Check input commands from the web
+		 check_task(); //Verify which command is received through it's ID code
+		 process_task(); //Do we have valid coordinates? If so, run hackRF.
 	 }
      //printf("*** Parent is done ***\n");
 	 }
@@ -116,6 +122,7 @@ void check_task(void){
 	
 	printf("In check_task function\n");
 	input_counter=0;
+	//printf("%d",web_string[input_counter]);
 	//while((web_string[input_counter] != 0) || (web_string[input_counter] != '\0')){
 		//printf("Checking number: %d, %c\n", input_counter, web_string[input_counter]);
 	if(web_string[input_counter]==49) //start one shot sweep mode?
@@ -127,10 +134,15 @@ void check_task(void){
 		coord_timeout = FALSE;
 		printf("start one shot mode condition true\n");
 		
+		printf("before write to webpage");
+		write_webpage(1);
+		printf("after write to webpage");
 		
 		//if location string is not empty
 		if(location_description[0] != '\0') {
 			use_location_flag = TRUE;
+			get_gps_data=FALSE;
+			
 			//printf("something is in the location string! it works!");
 			//printf("%s", location_description);
 		}
@@ -144,11 +156,12 @@ void check_task(void){
 		continuous_mode = TRUE;
 		coord_timeout = FALSE;
 		printf("start continuous sweep mode condition true\n");
-		
+		write_webpage(2);
 		
 		//if location string is not empty
 		if(location_description[0] != '\0') {
 			use_location_flag = TRUE;
+			get_gps_data=FALSE;
 			//printf("something is in the location string! it works!");
 			//printf("%s", location_description);
 		}
@@ -183,6 +196,7 @@ void check_task(void){
 			coord_timeout=FALSE;
 			start_hackRF=FALSE;
 		printf("stop hackRF condition true\n");
+		write_webpage(3); //write to webpage that the sweep has been stopped.
 	
 	}
 	if(web_string[input_counter]==52) //if true, hackRF is done
@@ -196,12 +210,21 @@ void check_task(void){
 			start_hackRF=TRUE;
 			get_gps_data=TRUE;
 			printf("restarted hack_rf\n");
+			
+			if(location_description[0] != '\0') {
+			use_location_flag = TRUE;
+			get_gps_data=FALSE;
+			//printf("something is in the location string! it works!");
+			//printf("%s", location_description);
+		}
+			
 		}
 		else {
 			use_location_flag = FALSE;
 			memset(location_description,0,sizeof(location_description));
 		}
 		printf("hackRF done condition true\n");
+		
 	}
 	if(web_string[input_counter]==53) //if true, hackRF is stuck
 	{
@@ -215,16 +238,26 @@ void check_task(void){
 			
 			sleep(3);
 			start_hackRF=TRUE; // if it get's stuck, restart it
+			if(location_description[0] != '\0') {
+			use_location_flag = TRUE;
+			get_gps_data=FALSE;
+			//printf("something is in the location string! it works!");
+			//printf("%s", location_description);
+		} else {
 			get_gps_data=TRUE; // get new GPS data
+		}
 			coord_timeout=FALSE; 
 			printf("hack rf ran when timout hit\n");
 		}
 		printf("hackRF stuck condition true\n");
+		write_webpage(4); //write to webpage that the HackRF has stalled.
 	}
 	
 	
 }
 
+//---The process_task function first checks to see if we have valid coordinates through the get_coordinates function. If we don't have valid coordinates, declare a GPS timeout.
+// If we do have valid coordinates, run the hackRF child process and the hackRF timeout function.
 void process_task(void){
 	printf("In check_process function\n");
 	if(get_gps_data==TRUE){ // IF true, we are wanting GPS coordinates.
@@ -260,7 +293,10 @@ void process_task(void){
 	}
 }
 
-void timeout(void){
+//---This function is the timeout function for the hackRF. It is called upon receiving GPS coordinates and starting the hackRF child process. 
+// This function sleeps for a set TIMEOUT_TIME, when that timeout time is complete, a "stuck" code, 5, is sent through the MAIN_FIFO_PATH to indicate that the
+// hack RF is stalled.
+void timeout(void){	
 	int fifo_file;
 	sleep(TIMEOUT_TIME);
 	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0);
@@ -269,6 +305,7 @@ void timeout(void){
 	exit(EXIT_SUCCESS);
 }
 
+//---gps_timeout function is for sending an invalid GPS coordinate set to get_coordinates. Once a set amount of invalid coordinates is read, we will declare the GPS timed out.
 void gps_timeout(void){
 	int fifo_file;
 	sleep(GPS_TIMEOUT_TIME);
@@ -305,13 +342,16 @@ void hackRF_start(void){
 	system(system_command);
 	}
 	//sleep(1); TESTING ONLY!!!
-	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0); 
+	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0); //Write to the MAIN_FIFO_PATH so that check_task function sees that the hackRF is finished sweeping.
 	write(fifo_file,"4",1);
 	close(fifo_file);
 	exit(EXIT_SUCCESS);
 }
 
 
+//--- The GPS_child_process function starts the gpsdData.py file and outputs that GPS data into the GPS_FILE_PATH FIFO. Then, the GPS_FILE_PATH FIFO is opened and hangs at
+// the open command until coordinates come through it. When valid coordinates are received, the GPS output is read into input_string. The input_string is searched for 
+// latitude and longitude data. 
 void GPS_child_process(void){
 	int fifo_file;
 	int fifo_file2;
@@ -323,82 +363,104 @@ void GPS_child_process(void){
 	float lat;
 	float lon;
 	char gps_system_call[60] = {0};
-	//char file[60] = {GPS_FILE_PATH};
+
 	
 	
-	sprintf(gps_system_call, "python gpsdData.py >> %s&", GPS_FILE_PATH);
+	sprintf(gps_system_call, "python gpsdData.py >> %s&", GPS_FILE_PATH);	//check and prepare the run GPS call
 	printf("system command is: %s\n",gps_system_call);
-	system(gps_system_call);
-	fifo_file = open(GPS_FILE_PATH, O_RDONLY, 0x0);
-	while(1){
+	system(gps_system_call); //Run the GPS system call
+	fifo_file = open(GPS_FILE_PATH, O_RDONLY, 0x0); //open and wait for data to come in from the GPS.
+	while(1){	//This function stays in this while loop continuously in order to always be getting fresh GPS data.
 		num=0;
 		num1=0;
 		lat=0.0;
 		lon=0.0;
 		//printf("looking for gps input data in child\n");
-	memset(input_string,0,sizeof(input_string));
-	read(fifo_file, input_string, 1000);
-	ss = strstr(input_string, "latitude");
+	memset(input_string,0,sizeof(input_string));	//clear the input_string of any garbage
+	read(fifo_file, input_string, 1000);	//read data from the GPS_FILE_PATH FIFO into input_string
+	ss = strstr(input_string, "latitude"); //Find the index position of where latitude is
 	if(ss==NULL) {
 		
 	}
-	else{
-		num = sscanf(ss+8, "%f", &lat);
-		ss = strstr(input_string, "longitude");
+	else{	//when the index of latitude is found
+		num = sscanf(ss+8, "%f", &lat);	//scan the value of latitude into the lat variable
+		ss = strstr(input_string, "longitude");	//Find the index of the longitude value
 		if(ss==NULL) {
 			
 		}
 		else{
-			num1 = sscanf(ss+9, "%f", &lon);
+			num1 = sscanf(ss+9, "%f", &lon);	//read the longitude value into lon
 		}
 	}
-	
-// if num is greater than 0 (meaning it found a latitude, print
-// if no num found, show line it didn't find one in
-	if(num>0 && num1>0 && lon>-128 && lat>25 && lon<-50 && lat<45) {
-		//printf("found lon/lat in child\n");
-		//printf("lat: %f... lon: %f... \n",lat, lon);
-		//fifo_file1 = open(REQUEST_GPS_FILE_PATH, O_RDONLY | O_NONBLOCK, 0x0);
-		//printf("child id %d\n", fifo_file1);
-		//if(fifo_file1 >= 0){ //opened FIFO to read, parent opened to write request
-			//printf("found request in child\n");
-			//close(fifo_file1);
-			sprintf(coord_string, "%f_%f", lat, lon);
-			fifo_file2 = open(SEND_GPS_FILE_PATH, O_WRONLY | O_NONBLOCK, 0x0);
-			write(fifo_file2, coord_string, 40);
+
+	if(num>0 && num1>0 && lon>-128 && lat>25 && lon<-50 && lat<45) {	//This is a condition to make sure we have valid latitude and longitude coordinates for North America
+
+			sprintf(coord_string, "%f_%f", lat, lon);	//prepare a string with latitude and longitude separated by _
+			fifo_file2 = open(SEND_GPS_FILE_PATH, O_WRONLY | O_NONBLOCK, 0x0);	//Open the SEND_GPS_FILE_PATH FIFO to send lat and lon
+			write(fifo_file2, coord_string, 40); //Send the coord_string containing the latitude_longitude
 			close(fifo_file2);
-		//}
-		
-		//printf("Count: %d, lat: %f, lon: %f\n",num, lat, lon);
-	}
-	//else {
-		//printf("no_data\n");
-	close(fifo_file);
-	fifo_file = open(GPS_FILE_PATH, O_RDONLY, 0x0);
+		}
+
+	close(fifo_file);	//Close the FIFO to refresh for next GPS coordinate
+	fifo_file = open(GPS_FILE_PATH, O_RDONLY, 0x0);	//Open the GPS_FILE_PATH FIFO to receive next coordinate. Hang until the data comes in.
 }
 exit(EXIT_SUCCESS);
 }
 
+//--- The get_coordinates function reads in the received coordinates from the GPS_child_process. If they are valid, store them in global variables and kill this child process.
+// if they are not valid, increment the coord_timeout. Once the coord_timeout variable is incremented a set amount, we will declare coordinate timeout.
 void get_coordinates(void){
-	//int fifo_file=0;
 	int fifo_file1=0;
 	char received_coordinates[40] = {0};
-	//fifo_file = open(REQUEST_GPS_FILE_PATH, O_WRONLY, 0x0);
-	//close(fifo_file);
 	// start gps_timeout_child
-	pid_gps_timeout = fork();
+	pid_gps_timeout = fork();	//start the gps_timeout function.
 	if(pid_gps_timeout == FALSE){
 		gps_timeout();
 	}
-	fifo_file1 = open(SEND_GPS_FILE_PATH, O_RDONLY, 0x0);
-	read(fifo_file1, received_coordinates, 40);
+	fifo_file1 = open(SEND_GPS_FILE_PATH, O_RDONLY, 0x0);	//Open the SEND_GPS_FILE_PATH FIFO to get the received coordinates from the GPS_child_process function.
+	read(fifo_file1, received_coordinates, 40);	//Read in the coordinates
 	close(fifo_file1);
-	sscanf(received_coordinates, "%f_%f", &lat, &lon);	//receive lat and lon value into floats
-	if((lat == 0.0) && (lon == 0.0)){
+	sscanf(received_coordinates, "%f_%f", &lat, &lon);	//receive lat and lon value into floats that can be used.
+	if((lat == 0.0) && (lon == 0.0)){	//If the latitude and longitude value are 0... increment coordinate timeout. 
 		coord_timeout = coord_timeout + 1;
 	}
 	else{
-		kill(pid_gps_timeout, SIGKILL);//kill gps_timeout
-		coord_timeout = FALSE;
+		kill(pid_gps_timeout, SIGKILL);// the else means that the latitude and longitude values are valid, so kill the get_coordinates function and move onto sweeping.
+		coord_timeout = FALSE;	//We got valid coordinates. Do not set coord_timeout as true.
 	}
 }
+
+void write_webpage(int code){
+	FILE *fp;
+	printf("in write function!");
+	printf("%d", code);
+	if(code == 1){	//running single sweep
+		printf("I should be writing");
+		fp = fopen("/var/www/html/interface/test.txt", "w+");
+		if(fp==NULL) printf("Did not open file correctly.");
+		fputs("Running single sweep\n", fp);
+		fclose(fp);
+	}
+	if(code == 2){	//running continuous sweep
+		printf("I should be writing");
+		fp = fopen("/var/www/html/interface/test.txt", "w+");
+		fputs("Running continuous sweep\n", fp);
+		fclose(fp);
+	}
+	if(code == 3){	//Sweep has been stopped
+		printf("I should be writing");
+		fp = fopen("/var/www/html/interface/test.txt", "w+");
+		if(fp==NULL) printf("Did not open file correctly.");
+		fputs("Stopped sweep\n", fp);
+		fclose(fp);
+	}
+	if(code == 4){
+		printf("I should be writing");
+		fp = fopen("/var/www/html/interface/test.txt", "w+");
+		fputs("One moment please - HackRF stalling\n", fp);
+		fclose(fp);
+	}
+		
+}
+   
+   

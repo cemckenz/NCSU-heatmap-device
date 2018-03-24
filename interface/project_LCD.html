@@ -196,8 +196,10 @@
     </style>
   </head>
   
-  <body>
+  <body onLoad="init_interface()">
 
+  
+  
 <input type="number" style = "
 	border: none;
 	position: absolute;
@@ -283,7 +285,7 @@ left: 379px;
 
 
 
-<p id="demo"></p>
+
 
 <script>
 function myFunction1() {
@@ -386,8 +388,10 @@ left: 481px;
     margin: 4px 2px;
     cursor: pointer;",type="button" onclick="send_value('./write_function 3')">Stop</button>
 
-<script src="project.js"></script>
+
 
 </a>
+<div id="demo"></div>
+<script src="project.js"></script>
   </body>
 </html>
