@@ -399,6 +399,7 @@ void GPS_child_process(void){
 			fifo_file2 = open(SEND_GPS_FILE_PATH, O_WRONLY | O_NONBLOCK, 0x0);	//Open the SEND_GPS_FILE_PATH FIFO to send lat and lon
 			write(fifo_file2, coord_string, 40); //Send the coord_string containing the latitude_longitude
 			close(fifo_file2);
+			write_webpage(5);
 		}
 
 	close(fifo_file);	//Close the FIFO to refresh for next GPS coordinate
@@ -437,7 +438,6 @@ void write_webpage(int code){
 	if(code == 1){	//running single sweep
 		printf("I should be writing");
 		fp = fopen("/var/www/html/interface/test.txt", "w+");
-		if(fp==NULL) printf("Did not open file correctly.");
 		fputs("Running single sweep\n", fp);
 		fclose(fp);
 	}
@@ -450,7 +450,6 @@ void write_webpage(int code){
 	if(code == 3){	//Sweep has been stopped
 		printf("I should be writing");
 		fp = fopen("/var/www/html/interface/test.txt", "w+");
-		if(fp==NULL) printf("Did not open file correctly.");
 		fputs("Stopped sweep\n", fp);
 		fclose(fp);
 	}
@@ -460,6 +459,13 @@ void write_webpage(int code){
 		fputs("One moment please - HackRF stalling\n", fp);
 		fclose(fp);
 	}
+	if(code == 5){
+		printf("I should be writing");
+		fp = fopen("/var/www/html/interface/gpstxt.txt", "w+");
+		fputs("GPS connected\n", fp);
+		fclose(fp);
+	}
+	
 		
 }
    

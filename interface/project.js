@@ -68,28 +68,50 @@ function init_interface(){
 	initialized=1;
 }
 
-var clear_timeout=0;
+var command_timeout=0;
+var GPS_timeout=0;
 
 function check_text(){
 	var update_box=0;
-	
-	
+	var command_status;
+	var GPS_status;
+	var separate;
 	
 	update_box=document.getElementById("demo");
 	
+	
 	//update_box.innerText = counter;
-	counter = counter + 1;
+	//counter = counter + 1;
 	//update_box.innerText=read_pi_text();
-	read_pi_text();
-	if(readdata.length > 0){
-	update_box.innerText = readdata;
-	clear_timeout = 6;
+	read_pi_text();	//readdata would have the dual string in it.
+	separate = readdata.search("#");
+	command_status = readdata.substring(0,separate);
+	GPS_status = readdata.substring(separate+1,readdata.length);
+	
+	
+	if(command_status.length > 0){
+	update_box.innerText = command_status;
+	command_timeout = 10;
 } else {
-	if(clear_timeout == 0){
-		update_box.innerText = readdata;
+	if(command_timeout == 0){
+		update_box.innerText = command_status;
 	
 	}
-	if(clear_timeout > 0) clear_timeout = clear_timeout - 1;		
+	if(command_timeout > 0) command_timeout = command_timeout - 1;		
+}
+	update_box=document.getElementById("demo_GPS");
+	if(GPS_status.length > 0){
+	//update_box.innerText = GPS_status;
+	update_box.src = "/interface/gps_image.png";
+	
+	GPS_timeout = 10;
+} else {
+	if(GPS_timeout == 0){
+		update_box.src = "/interface/no_gps_image.jpg";
+		//update_box.innerText = GPS_status;
+	
+	}
+	if(GPS_timeout > 0) GPS_timeout = GPS_timeout - 1;		
 }
 	
 }
