@@ -308,7 +308,7 @@ function myFunction1() {
 	
 	
     // If x is Not a Number or less than one or greater than 10
-    if ((y<x) || (y==x) || (isNaN(x) || (x < 100) || (x > 6000)) || (isNaN(y) || (y < 1) || (y > 6000)) || (isNaN(z) || (z < 2500) || (z > 100000))) {
+    if ((y<x) || (y==x) || (isNaN(x) || (x < 100) || (x > 6000)) || (isNaN(y) || (y < 1) || (y > 6000)) || (isNaN(z) || (z < 2500) || (z > 100000)) || ((GPS_flag==0) && (q==0))) {
     	alert("Input not valid");
         if((y<x) || (y==x)) alert("Upper frequency must be larger than lower frequency");
         if((x < 100) || (x > 6000)) alert("Lower frequency must be between 100MHz and 6GHz");
@@ -316,6 +316,7 @@ function myFunction1() {
         
         if((y < 100) || (y > 6000)) alert("Upper frequency must be between 100MHz and 6GHz");
         if(isNaN(y)) alert("Upper frequency must be a number");
+        if((GPS_flag==0) && (q==0)) alert("Must enter location desciption.");
         
         if((z < 2500) || (z > 100000)) alert("Bin width must be between 2500 and 100000");
         if(isNaN(z)) alert("Bin width must be a number");
@@ -347,7 +348,7 @@ function myFunction2() {
 	//alert(q);
 	
     // If x is Not a Number or less than one or greater than 10
-    if ((y<x)  || (y==x) || (isNaN(x) || (x < 1) || (x > 6000)) || (isNaN(y) || (y < 1) || (y > 6000)) || (isNaN(z) || (z < 2500) || (z > 100000))) {
+    if ((y<x)  || (y==x) || (isNaN(x) || (x < 1) || (x > 6000)) || (isNaN(y) || (y < 1) || (y > 6000)) || (isNaN(z) || (z < 2500) || (z > 100000)) || ((GPS_flag==0) && (q==0))) {
     	alert("Input not valid")
         if(y<=x) alert("Upper frequency must be larger than lower frequency");
         if((x < 100) || (x > 6000)) alert("Lower frequency must be between 100MHz and 6GHz");
@@ -358,6 +359,7 @@ function myFunction2() {
         
         if((z < 2500) || (z > 100000)) alert("Bin width must be between 2500 and 100000");
         if(isNaN(z)) alert("Bin width must be a number");
+        if((GPS_flag==0) && (q==0)) alert("Must enter location description.")
     } else {
         
         send_value('./write_function ' + text)

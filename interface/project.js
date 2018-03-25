@@ -70,6 +70,7 @@ function init_interface(){
 
 var command_timeout=0;
 var GPS_timeout=0;
+var GPS_flag=0;
 
 function check_text(){
 	var update_box=0;
@@ -91,7 +92,7 @@ function check_text(){
 	
 	if(command_status.length > 0){
 	update_box.innerText = command_status;
-	command_timeout = 10;
+	command_timeout = 3;
 } else {
 	if(command_timeout == 0){
 		update_box.innerText = command_status;
@@ -103,13 +104,13 @@ function check_text(){
 	if(GPS_status.length > 0){
 	//update_box.innerText = GPS_status;
 	update_box.src = "/interface/gps_image.png";
-	
+	GPS_flag=1;
 	GPS_timeout = 10;
 } else {
 	if(GPS_timeout == 0){
 		update_box.src = "/interface/no_gps_image.jpg";
 		//update_box.innerText = GPS_status;
-	
+	GPS_flag=0;
 	}
 	if(GPS_timeout > 0) GPS_timeout = GPS_timeout - 1;		
 }

@@ -461,7 +461,7 @@ void write_webpage(int code){
 	}
 	if(code == 5){
 		printf("I should be writing");
-		fp = fopen("/var/www/html/interface/gpstxt.txt", "w+");
+		fp = fopen("/var/www/html/interface/gps.txt", "w+");
 		fputs("GPS connected\n", fp);
 		fclose(fp);
 	}
