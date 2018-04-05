@@ -345,6 +345,7 @@ void hackRF_start(void){
 	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0); //Write to the MAIN_FIFO_PATH so that check_task function sees that the hackRF is finished sweeping.
 	write(fifo_file,"4",1);
 	close(fifo_file);
+	system("omxplayer -o both alert.mp3 > NULL");
 	exit(EXIT_SUCCESS);
 }
 
@@ -467,6 +468,4 @@ void write_webpage(int code){
 	}
 	
 		
-}
-   
-   
+}   
