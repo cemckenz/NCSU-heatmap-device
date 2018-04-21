@@ -51,6 +51,7 @@ int dummy = 0;
 int f_lower_bound = 0;
 int f_upper_bound = 0;
 int bin_size =0;
+int name_flag=0;
 float lat=0.0;
 float lon=0.0;
 pid_t  pid_timeout;
@@ -92,7 +93,7 @@ int main(int argc, char **argv)
 	printf("In check_input function\n");
 	memset(web_string,0,sizeof(web_string));	//clear the storage string before data comes in
 	if(coord_timeout){ //is coordinate timeout not zero? 
-	//if it's not zero, timeout is occuring. Check web input quickly, then keep getting GPS data.
+	//if it's not zero, timeout is occurring. Check web input quickly, then keep getting GPS data.
 		printf("coord_timeout is true! \n");
 		fifo_file = open(MAIN_FIFO_PATH, O_RDONLY | O_NONBLOCK, 0x0);
 		sleep(1); // u sleep is microsecond sleep
@@ -108,9 +109,11 @@ int main(int argc, char **argv)
                     read(fifo_file, web_string, 60);
                 }
    	        close(fifo_file); 
-			sscanf(web_string, "%d_%d_%d_%d_%s", &dummy, &f_lower_bound, &f_upper_bound, &bin_size, location_description); 
+			sscanf(web_string, "%d_%d_%d_%d_%d_%s", &dummy, &f_lower_bound, &f_upper_bound, &bin_size, &name_flag, location_description); 
                 //print the string received from the FIFO
                 printf("printing received web string: %s\n",web_string);
+                printf("command: %d,  f_low: %d,  f_high: %d, bin_size: %d,  name_flag: %d, location: %s", dummy, f_lower_bound, f_upper_bound, bin_size, name_flag, location_description);
+				
 	}
 	
 	}
@@ -133,19 +136,37 @@ void check_task(void){
 		continuous_mode = FALSE;
 		coord_timeout = FALSE;
 		printf("start one shot mode condition true\n");
-		
+		printf("name_flag is: %d",name_flag);
 		printf("before write to webpage");
 		write_webpage(1);
 		printf("after write to webpage");
-		
-		//if location string is not empty
-		if(location_description[0] != '\0') {
-			use_location_flag = TRUE;
-			get_gps_data=FALSE;
+		if(name_flag==2){	//webpage says we do not have GPS but have a description
+				start_hackRF=TRUE;
+				get_gps_data=FALSE;
+				continuous_mode = FALSE;
+				
 			
+		}
+		if(name_flag==1){	//webpage says we have GPS and name description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				continuous_mode = FALSE;
+				coord_timeout = FALSE;
+		}
+		if(name_flag==3){	//webpage says we have GPS but don't have description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				continuous_mode = FALSE;
+				coord_timeout = FALSE;
+		}
+		//if location string is not empty
+		//if(location_description[0] != '\0') {
+			//use_location_flag = TRUE;
+			//get_gps_data=FALSE;
+			//coord_timeout = FALSE;
 			//printf("something is in the location string! it works!");
 			//printf("%s", location_description);
-		}
+		//}
 		//set flag to use location as sweep file name as TRUE
 	}
 	if(web_string[input_counter]==50) //start continuous sweep mode?
@@ -158,12 +179,24 @@ void check_task(void){
 		printf("start continuous sweep mode condition true\n");
 		write_webpage(2);
 		
-		//if location string is not empty
-		if(location_description[0] != '\0') {
-			use_location_flag = TRUE;
-			get_gps_data=FALSE;
-			//printf("something is in the location string! it works!");
-			//printf("%s", location_description);
+		if(name_flag==2){	//webpage says we do not have GPS but have a description
+				start_hackRF=TRUE;
+				get_gps_data=FALSE;
+				
+				
+			
+		}
+		if(name_flag==1){	//webpage says we have GPS and name description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				
+				coord_timeout = FALSE;
+		}
+		if(name_flag==3){	//webpage says we have GPS but don't have description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				
+				coord_timeout = FALSE;
 		}
 		//set flag to use location as sweep file name as TRUE
 	}
@@ -206,22 +239,24 @@ void check_task(void){
 		timeout_active=FALSE;
 		
 		}
-		if(continuous_mode==TRUE){
-			start_hackRF=TRUE;
-			get_gps_data=TRUE;
-			printf("restarted hack_rf\n");
-			
-			if(location_description[0] != '\0') {
-			use_location_flag = TRUE;
-			get_gps_data=FALSE;
-			//printf("something is in the location string! it works!");
-			//printf("%s", location_description);
-		}
+		if(name_flag==2){	//webpage says we do not have GPS but have a description
+				start_hackRF=TRUE;
+				get_gps_data=FALSE;
+				
+				
 			
 		}
-		else {
-			use_location_flag = FALSE;
-			memset(location_description,0,sizeof(location_description));
+		if(name_flag==1){	//webpage says we have GPS and name description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				
+				coord_timeout = FALSE;
+		}
+		if(name_flag==3){	//webpage says we have GPS but don't have description
+				start_hackRF=TRUE;
+				get_gps_data=TRUE;
+				
+				coord_timeout = FALSE;
 		}
 		printf("hackRF done condition true\n");
 		
@@ -329,15 +364,20 @@ void hackRF_start(void){
 	system("pgrep hack | xargs sudo kill -INT");
 	
 	// hackRF system call for GPS coordinates as text file title
-	if(use_location_flag != TRUE) {
-	sprintf(system_command, "%s -a 0 -f %d:%d -1 32 -g 32 -w %d -r %f_%f.txt", &hack_command[0], f_lower_bound, f_upper_bound, bin_size, lat, lon);
+	if(name_flag==3) {
+	sprintf(system_command, "%s -a 0 -f %d:%d -1 32 -g 32 -w %d -r /home/pi/Desktop/SweepData/%f_%f.txt", &hack_command[0], f_lower_bound, f_upper_bound, bin_size, lat, lon);
 	printf("checking system command: %s\n",system_command);
 	system(system_command);
 	}
 	
 	// hackRF system call for location description as text file title
-	else {
-		sprintf(system_command, "%s -a 0 -f %d:%d -1 32 -g 32 -w %d -r %s.txt", &hack_command[0], f_lower_bound, f_upper_bound, bin_size, location_description);
+	if(name_flag==2) {
+		sprintf(system_command, "%s -a 0 -f %d:%d -1 32 -g 32 -w %d -r /home/pi/Desktop/SweepData/%s.txt", &hack_command[0], f_lower_bound, f_upper_bound, bin_size, location_description);
+	printf("checking system command: %s\n",system_command);
+	system(system_command);
+	}
+	if(name_flag==1) {
+	sprintf(system_command, "%s -a 0 -f %d:%d -1 32 -g 32 -w %d -r /home/pi/Desktop/SweepData/%s_%f_%f.txt", &hack_command[0], f_lower_bound, f_upper_bound, bin_size, location_description, lat, lon);
 	printf("checking system command: %s\n",system_command);
 	system(system_command);
 	}
@@ -345,7 +385,6 @@ void hackRF_start(void){
 	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0); //Write to the MAIN_FIFO_PATH so that check_task function sees that the hackRF is finished sweeping.
 	write(fifo_file,"4",1);
 	close(fifo_file);
-	system("omxplayer -o both alert.mp3 > NULL");
 	exit(EXIT_SUCCESS);
 }
 

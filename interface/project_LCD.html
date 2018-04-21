@@ -267,9 +267,20 @@ function myFunction1() {
         if(isNaN(z)) alert("Bin width must be a number");
 		
     } else {
-        
-        send_value('./write_function ' + text);
-        alert(text);
+        if((GPS_flag==1) && (q!=0)){ //if we have GPS and file description, send code "1" to name file as name_GPScoordinates
+		
+		text = "1_" + x + "_" + y + "_" + z + "_" + "1_" + q;
+		}
+		if((GPS_flag==0) && (q!=0)){	//if we do not have GPS but we have a description
+		
+		text = "1_" + x + "_" + y + "_" + z + "_" + "2_" + q;
+		}
+		if((GPS_flag==1) && (q==0)){	//if we have GPS but do not have description
+		text = "1_" + x + "_" + y + "_" + z + "_" + "3_" + q;
+		//text format for not using the name in the HACKrf file name output.
+		}
+        send_value('./write_function ' + text)
+        alert(text)
     }
     
 }
@@ -304,7 +315,18 @@ function myFunction2() {
         if(isNaN(z)) alert("Bin width must be a number");
         if((GPS_flag==0) && (q==0)) alert("Must enter location description.")
     } else {
-        
+        if((GPS_flag==1) && (q!=0)){ //if we have GPS and file description, send code "1" to name file as name_GPScoordinates
+		
+		text = "2_" + x + "_" + y + "_" + z + "_" + "1_"+ q;
+		}
+		if((GPS_flag==0) && (q!=0)){	//if we do not have GPS but we have a description
+		
+		text = "2_" + x + "_" + y + "_" + z + "_" + "2_"+ q;
+		}
+		if((GPS_flag==1) && (q==0)){	//if we have GPS but do not have description
+		text = "2_" + x + "_" + y + "_" + z + "_" + "3_"+ q;
+			//text format for not using the name in the HACKrf file name output.
+		}
         send_value('./write_function ' + text)
         alert(text)
     }
