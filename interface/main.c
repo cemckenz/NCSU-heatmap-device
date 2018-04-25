@@ -239,25 +239,30 @@ void check_task(void){
 		timeout_active=FALSE;
 		
 		}
-		if(name_flag==2){	//webpage says we do not have GPS but have a description
+		
+		if(continuous_mode==TRUE){
+			if(name_flag==2){	//webpage says we do not have GPS but have a description
 				start_hackRF=TRUE;
 				get_gps_data=FALSE;
 				
 				
 			
-		}
-		if(name_flag==1){	//webpage says we have GPS and name description
+			}
+			if(name_flag==1){	//webpage says we have GPS and name description
 				start_hackRF=TRUE;
 				get_gps_data=TRUE;
 				
 				coord_timeout = FALSE;
-		}
-		if(name_flag==3){	//webpage says we have GPS but don't have description
+			}
+			if(name_flag==3){	//webpage says we have GPS but don't have description
 				start_hackRF=TRUE;
 				get_gps_data=TRUE;
 				
 				coord_timeout = FALSE;
+			}	
 		}
+		
+		
 		printf("hackRF done condition true\n");
 		
 	}
@@ -286,6 +291,11 @@ void check_task(void){
 		}
 		printf("hackRF stuck condition true\n");
 		write_webpage(4); //write to webpage that the HackRF has stalled.
+	}
+	if(web_string[input_counter]==55){
+		system("python post.py");
+		printf("RUNNING UPLOAD SCRIPT");
+		
 	}
 	
 	
@@ -385,6 +395,7 @@ void hackRF_start(void){
 	fifo_file = open(MAIN_FIFO_PATH, O_WRONLY, 0x0); //Write to the MAIN_FIFO_PATH so that check_task function sees that the hackRF is finished sweeping.
 	write(fifo_file,"4",1);
 	close(fifo_file);
+	system("omxplayer -o both alert.mp3 > NULL");
 	exit(EXIT_SUCCESS);
 }
 

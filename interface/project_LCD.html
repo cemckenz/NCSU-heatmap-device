@@ -198,6 +198,17 @@ id="binWIDTH"
 	id="location"
 	>
 
+<button onclick="myFunction3()"<img src="/var/www/html/interface/upload_button.JPG";
+style="
+border:none;
+background-color: transparent;
+border-radius: 100%;
+padding: 30px 30px;
+position:absolute;
+top: 377px;
+left: 712px;"
+>
+</button>
 
 <button style="background-color: #8CE599;
     border: none;
@@ -279,8 +290,8 @@ function myFunction1() {
 		text = "1_" + x + "_" + y + "_" + z + "_" + "3_" + q;
 		//text format for not using the name in the HACKrf file name output.
 		}
-        send_value('./write_function ' + text)
-        alert(text)
+        send_value('./write_function ' + text);
+        alert(text);
     }
     
 }
@@ -327,10 +338,16 @@ function myFunction2() {
 		text = "2_" + x + "_" + y + "_" + z + "_" + "3_"+ q;
 			//text format for not using the name in the HACKrf file name output.
 		}
-        send_value('./write_function ' + text)
-        alert(text)
+        send_value('./write_function ' + text);
+        alert(text);
     }
     
+}
+function myFunction3() {
+	var text;
+	text = "7";
+	send_value('./write_function ' + text);
+	alert("Data Uploaded!");
 }
 </script>
 
